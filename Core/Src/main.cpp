@@ -19,6 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "../Inc/main.hpp"
 #include "../Inc/MotionDetect.hpp"
+#include "../Inc/ArmButton.hpp"
+
 
 #include "dfsdm.h"
 #include "i2c.h"
@@ -40,7 +42,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-enum class State
+enum class ArmState
 {
   Armed,
   Unarmed
@@ -63,8 +65,12 @@ enum class State
 extern I2C_HandleTypeDef hi2c2;   // struct for ic2 peripherals, calling in hi2c2
 extern UART_HandleTypeDef huart1; // for logging
 
+
+
 // system armed/unarmed state (start unarmed)
-static State currentState = State::Unarmed;
+static ArmState gArmState = ArmState::Unarmed;
+
+ArmButton gArmButton(50, 3000);
 
 static MotionDetect motion(&hi2c2, &huart1);
 /* USER CODE END PV */
@@ -77,72 +83,29 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static inline void uartPrint(const char* s) {
+  HAL_UART_Transmit(&huart1, reinterpret_cast<const uint8_t*>(s),
+                    strlen(s), 100);
+}
 
-class ButtonHandler
-{
-public:
-  ButtonHandler(UART_HandleTypeDef *uart = nullptr) : uart_(uart) { instance_ = this; }
+static void setArmedVisual(bool armed) {
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, armed ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
 
-  static void onISR()
-  {
-    if (instance_)
-      instance_->onButtonPressedISR();
+static void toggleArmOnLongPress() {
+  if (gArmState == ArmState::Armed) {
+    gArmState = ArmState::Unarmed;
+    setArmedVisual(false);
+    uartPrint("DISARMED\r\n");
+  } else {
+    gArmState = ArmState::Armed;
+    setArmedVisual(true);
+    uartPrint("ARMED\r\n");
   }
+}
 
-  void processPressInMainLoop()
-  {
-    if (pressedFlag_)
-    {
-      pressedFlag_ = false;
-      onButtonPressed(); // your real work
-    }
-  }
 
-  void uartPrint(const char *s)
-  {
-    if (!uart_)
-      return;
-    HAL_UART_Transmit(uart_, (uint8_t *)s, strlen(s), 100);
-  }
 
-private:
-  void onButtonPressedISR()
-  {
-    uint32_t now = HAL_GetTick();
-    if (now - lastTick_ > 50)
-    { // debounce 50 ms
-      pressedFlag_ = true;
-      lastTick_ = now;
-    }
-  }
-
-  void onButtonPressed()
-  {
-    // TODO: your action (toggle LED, send msg, etc.)
-    // Toggle armed state and update LED to reflect it.
-    if (currentState == State::Armed)
-    {
-      currentState = State::Unarmed;
-      // turn LED off when unarmed
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
-      uartPrint("DISARMED\r\n");
-    }
-    else
-    {
-      currentState = State::Armed;
-      // turn LED on when armed
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
-      uartPrint("ARMED\r\n");
-    }
-  }
-
-  static ButtonHandler *instance_;
-  volatile bool pressedFlag_{false};
-  uint32_t lastTick_{0};
-  UART_HandleTypeDef *uart_{nullptr};
-};
-
-ButtonHandler *ButtonHandler::instance_ = nullptr;
 
 /* USER CODE END 0 */
 
@@ -182,10 +145,9 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  ButtonHandler button(&huart1);
   // ensure LED shows unarmed at startup
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+  setArmedVisual(false);
+
 
   HAL_UART_Transmit(&huart1, (uint8_t *)"Motion logger started\r\n", 23, 100);
   // Probe + init LSM6DSL
@@ -213,10 +175,15 @@ int main(void)
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
     // handle button first so state changes take effect immediately
-    button.processPressInMainLoop();
+	const uint32_t now = HAL_GetTick();
+	gArmButton.poll(now);
+	const auto ev = gArmButton.consumeEvent();
+	if (ev.long_press){
+		toggleArmOnLongPress();
+	}
 
     // only sample/log motion when armed
-    if (currentState == State::Armed)
+    if (gArmState == ArmState::Armed)
     {
       motion.update();
     }
@@ -290,7 +257,7 @@ extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_13)
   {
-    ButtonHandler::onISR();
+    gArmButton.onIsrEdge();
   }
 }
 /* USER CODE END 4 */
