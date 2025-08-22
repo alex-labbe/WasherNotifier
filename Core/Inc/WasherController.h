@@ -17,11 +17,12 @@
 #include "notifier_interface.h"
 #include "ArmButton.h"
 
-enum class WasherState { Idle, Armed, Monitering, Done, Error };
+enum class WasherState { Idle, Armed, Done, Error };
 
 struct WasherParams {
 	uint32_t still_timeout_ms = 120000; // how long of “still” => done (e.g., 2 min)
-	uint32_t start_motion_grace_ms = 30000; // time window to see motion after arming
+	uint32_t start_motion_timeout_ms = 600000;  // e.g., 10 min to see first motion after arming
+	uint32_t min_run_time_ms = 600000;          // e.g., 10 min minimum run time before "Done" allowed// time window to not really see motion after arming not actualluy sure how usefil this is
 };
 
 class WasherController{
@@ -35,6 +36,8 @@ public:
 private: //methods
 	void uartPrint(const char* s);
 
+	void finishCycle();
+
 	// helper to get state name
 	void setState(WasherState new_state, uint32_t now_ms);
 private: //vars
@@ -47,6 +50,9 @@ private: //vars
 
 	WasherState state_{WasherState::Idle};
 	uint32_t state_since_ms_{0};
+	uint32_t last_motion_ms_{0};
+
+	bool seen_motion_{false};
 
 };
 

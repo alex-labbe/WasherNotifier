@@ -12,7 +12,7 @@
 #include <cstdint>
 
 
-class INotifier { //TODO: implement the huart version of notifying. maybe update the lights too? kinda complicated
+class INotifier { //TODO: implement the huart version of notifying. no light - unarmed, blinking, armed/running, done - solid
 public:
 	virtual ~INotifier() = default;
 
