@@ -17,9 +17,11 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "../Inc/main.hpp"
-#include "../Inc/MotionDetect.hpp"
-#include "../Inc/ArmButton.hpp"
+#include "main.h"
+#include "../Inc/MotionDetect.h"
+#include "../Inc/ArmButton.h"
+#include "../Inc/WasherController.h"
+#include "../Inc/Fake_Motion.h"
 
 
 #include "dfsdm.h"
@@ -42,11 +44,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-enum class ArmState
-{
-  Armed,
-  Unarmed
-};
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -68,9 +66,13 @@ extern UART_HandleTypeDef huart1; // for logging
 
 
 // system armed/unarmed state (start unarmed)
-static ArmState gArmState = ArmState::Unarmed;
+
 
 ArmButton gArmButton(50, 3000);
+FakeMotion gMotion;
+WasherParams gParams{120000, 30000};
+
+
 
 static MotionDetect motion(&hi2c2, &huart1);
 /* USER CODE END PV */
@@ -92,17 +94,7 @@ static void setArmedVisual(bool armed) {
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, armed ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
-static void toggleArmOnLongPress() {
-  if (gArmState == ArmState::Armed) {
-    gArmState = ArmState::Unarmed;
-    setArmedVisual(false);
-    uartPrint("DISARMED\r\n");
-  } else {
-    gArmState = ArmState::Armed;
-    setArmedVisual(true);
-    uartPrint("ARMED\r\n");
-  }
-}
+
 
 
 
@@ -178,15 +170,15 @@ int main(void)
 	const uint32_t now = HAL_GetTick();
 	gArmButton.poll(now);
 	const auto ev = gArmButton.consumeEvent();
-	if (ev.long_press){
-		toggleArmOnLongPress();
-	}
+	//if (ev.long_press){
+		//toggleArmOnLongPress();
+	//}
 
     // only sample/log motion when armed
-    if (gArmState == ArmState::Armed)
-    {
-      motion.update();
-    }
+    //if (gArmState == ArmState::Armed)
+    //{
+    motion.update();
+    //}
 
     HAL_Delay(50); // wait 50ms, running at 20 Hz
   }

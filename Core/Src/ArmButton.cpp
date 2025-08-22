@@ -5,8 +5,8 @@
  *      Author: alexl
  */
 
-#include "ArmButton.hpp"
-#include "../Inc/main.hpp"
+#include "ArmButton.h"
+#include "../Inc/main.h"
 
 namespace{
 inline bool readButtonPinActiveHigh() {

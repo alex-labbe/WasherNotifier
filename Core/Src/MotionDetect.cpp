@@ -8,13 +8,11 @@
 
 
 
-#include "MotionDetect.hpp"
+#include "MotionDetect.h"
 #include <cstring>
 #include <cstdio>
 #include <cmath>
-extern "C" {
-  #include "stm32l4xx_hal.h"
-}
+#include "../Inc/main.h"
 
 // LSM6DSL registers/values
 static constexpr uint8_t REG_WHO_AM_I = 0x0F;
