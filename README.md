@@ -9,6 +9,7 @@ for a defined period, the STM32 triggers a **notification** by sending a
 message to a remote server (AWS EC2) which then relays an **email or push  
 notification** to the user.
 
+#THIS IS NOT UP TO DATE
 ## Motion Detection Module
 
 This project splits the motion detection logic into a dedicated C++ class for clarity and reuse. The functionality is organized across three files:
